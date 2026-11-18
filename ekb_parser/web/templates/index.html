@@ -1,0 +1,331 @@
+{% import 'help.html' as help -%}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="ui-token" content="{{ token }}">
+  <meta name="theme-color" content="#2e3440">
+  <title>ЭКБ · Парсер каталога</title>
+  {% set versions = asset_versions | default({}) %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=versions.get('style.css')) }}">
+  <script defer src="{{ url_for('static', filename='app.js', v=versions.get('app.js')) }}"></script>
+</head>
+<body data-page="{{ page }}">
+<div class="shell">
+  <aside class="rail">
+    <div class="rail-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+    <nav aria-label="Разделы приложения">
+      {% for key, (path, title, icon) in pages.items() %}
+        <a class="nav{% if key == page %} active{% endif %}" href="{{ path }}" data-page="{{ key }}" data-title="{{ title }}"{% if key == page %} aria-current="page"{% endif %}>
+          <span aria-hidden="true">{{ icon }}</span> {{ title }}<span class="nav-dot"{% if key != page %} hidden{% endif %}></span>
+        </a>
+      {% endfor %}
+    </nav>
+  </aside>
+  <main>
+    <header class="topbar workspace-bar">
+      <div class="source-picker">
+        <label for="source">Сайт-источник</label>
+        <div class="select-field">
+          <select id="source" disabled><option>Загрузка источников…</option></select>
+        </div>
+      </div>
+      <div class="run-picker" id="run-picker"{% if page == 'reader' %} hidden{% endif %}>
+        {{ help.field('existing', 'Сохранённый сбор', 'saved-run') }}
+        <div class="select-field">
+          <select id="existing"><option value="">Выбрать сбор…</option></select>
+        </div>
+      </div>
+      <div class="workspace-actions">
+        <span id="workspace-task" class="badge" hidden></span>
+        <button id="refresh-workspace" class="secondary" type="button">Обновить</button>
+        <button id="stop" class="secondary stop" type="button" disabled{% if page == 'reader' %} hidden{% endif %}>■ Остановить</button>
+      </div>
+    </header>
+    <section class="page-heading">
+      <h1 id="page-title">{{ pages[page][1] }}</h1>
+    </section>
+    <section id="source-unavailable" class="panel tool-panel" hidden>
+      <h2>Другой сайт пока не подключён</h2>
+      <p>Каталог и результаты появятся после подключения источника.</p>
+    </section>
+    <section class="view reader-view" data-view="reader"{% if page != 'reader' %} hidden{% endif %}>
+      <section class="panel reader-dashboard" aria-labelledby="reader-dashboard-title">
+        <div class="reader-dashboard-header">
+          <div><h2 id="reader-dashboard-title">Статистика каталога</h2><p id="reader-stats-scope" class="muted"></p></div>
+          <div class="select-field">
+            <select id="reader-stats-level" aria-label="Уровень статистики">
+              <option value="source">Весь каталог</option>
+              <option value="category">Выбранная категория</option>
+              <option value="group">Выбранная подкатегория</option>
+            </select>
+          </div>
+        </div>
+        <dl id="reader-kpis" class="reader-kpis"></dl>
+        <div class="reader-chart-grid">
+          <section class="reader-chart" aria-labelledby="reader-volume-title">
+            <h3 id="reader-volume-title">Записи по категориям</h3>
+            <ul id="reader-volume" class="reader-volume"></ul>
+          </section>
+          <section class="reader-chart" aria-labelledby="reader-completeness-title">
+            <h3 id="reader-completeness-title">Компоненты по заполненности</h3>
+            <div id="reader-status-chart"></div>
+          </section>
+          <section class="reader-chart" aria-labelledby="reader-fields-title">
+            <h3 id="reader-fields-title">Обязательные поля</h3>
+            <div id="reader-fields-chart"></div>
+          </section>
+        </div>
+        <p id="reader-stats-message" class="muted" role="status">Загрузка статистики…</p>
+      </section>
+      <div class="panel reader-panel">
+        <div class="reader-toolbar">
+          <div class="reader-category">
+            <label for="reader-category">Категория</label>
+            <div class="select-field"><select id="reader-category" disabled></select></div>
+          </div>
+          <div class="reader-search">
+            <label for="reader-search">Поиск в подкатегории</label>
+            <input id="reader-search" type="search" placeholder="Артикул, производитель или серия" disabled>
+          </div>
+          <a id="reader-archive" class="reader-action" hidden>Скачать архив каталога ↓</a>
+        </div>
+        <div id="reader-groups" class="reader-groups" role="group" aria-label="Подкатегории каталога"></div>
+        <div class="reader-summary">
+          <div>
+            <strong id="reader-selection"></strong>
+            <span id="reader-updated" class="muted"></span>
+          </div>
+          <div class="reader-downloads" aria-label="Скачать выбранную подкатегорию">
+            <a id="reader-csv" class="reader-action" hidden>CSV ↓</a>
+            <a id="reader-jsonl" class="reader-action" hidden>JSONL ↓</a>
+            <a id="reader-sqlite" class="reader-action" hidden>SQLite ↓</a>
+          </div>
+        </div>
+        <div id="reader-table-wrap" class="table-wrap reader-table" tabindex="0" aria-label="Компоненты выбранной подкатегории">
+          <table><thead><tr><th scope="col">Артикул</th><th scope="col">Производитель</th><th scope="col">Серия</th><th scope="col">Заполненность</th><th scope="col">Документы</th></tr></thead>
+          <tbody id="reader-rows"><tr><td colspan="5" class="empty-table">Загрузка каталога…</td></tr></tbody></table>
+        </div>
+        <div class="table-footer">
+          <span id="reader-range" aria-live="polite"></span>
+          <div>
+            <button id="reader-first" class="icon-button" type="button" aria-label="Первая страница" title="Первая страница" disabled>⇤</button>
+            <button id="reader-prev" class="icon-button" type="button" aria-label="Предыдущая страница" disabled>←</button>
+            <button id="reader-next" class="icon-button" type="button" aria-label="Следующая страница" disabled>→</button>
+            <button id="reader-last" class="icon-button" type="button" aria-label="Последняя страница" title="Последняя страница" disabled>⇥</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="workspace view" data-view="collect"{% if page != 'collect' %} hidden{% endif %}>
+      <form id="collect-form" class="panel setup-panel">
+        <div class="panel-heading"><h2>Параметры сбора</h2></div>
+        {{ help.field('preset', 'Категория', 'preset') }}
+        <div class="select-field"><select id="preset" required></select></div>
+        {{ help.field('subcategory', 'Подкатегория', 'subcategory') }}
+        <div class="select-field"><select id="subcategory" required></select></div>
+        <div id="group-tags" class="group-tags"></div>
+        <div class="field-grid"><div>{{ help.field('max-pages', 'Лимит страниц', 'max-pages', 'max-pages') }}<input id="max-pages" type="number" value="2" min="0" max="1000000" required><small>За этот запуск. 0 — без лимита.</small></div><div>{{ help.field('max-parts', 'Лимит компонентов', 'max-parts', 'max-parts') }}<input id="max-parts" type="number" value="200" min="1" max="100000000" required><small>Всего в выбранной папке.</small></div></div>
+        <div class="field-grid"><div>{{ help.field('page-size', 'Строк на странице', 'page-size') }}<input id="page-size" type="number" value="100" min="1" max="100" required></div><div>{{ help.field('delay', 'Пауза между запросами, с', 'delay') }}<input id="delay" type="number" value="2" min="1" step="0.5" required></div></div>
+        <div class="estimate" id="estimate"><span>↳</span> До 200 компонентов за запуск</div>
+        <div class="field-label"><span id="run-mode-label">Режим запуска</span>{{ help.button('mode', 'Режим запуска') }}</div><div class="segmented" role="group" aria-labelledby="run-mode-label"><label><input type="radio" name="mode" value="new" checked><span>С нуля</span></label><label><input type="radio" name="mode" value="resume"><span>Продолжить</span></label></div>
+        {{ help.field('output', 'Папка результата', 'output') }}<input id="output" type="text" spellcheck="false" required><small>Путь от корня проекта, внутри data/.</small>
+        <details class="advanced"><summary>Дополнительные настройки <span>+</span></summary>{{ help.field('groups', 'Группы и фильтры · JSON', 'groups') }}<textarea id="groups" rows="9" spellcheck="false"></textarea><small>Формат фильтров определяется адаптером выбранного сайта.</small>{{ help.field('adapter-options', 'Настройки адаптера · JSON', 'adapter-options') }}<textarea id="adapter-options" rows="3" spellcheck="false">{}</textarea><small>Оставьте настройки из выбранного пресета.</small>{{ help.field('log-level', 'Уровень журнала', 'log-level') }}<div class="select-field"><select id="log-level"><option>INFO</option><option>DEBUG</option><option>WARNING</option><option>ERROR</option></select></div><div class="field-label checkbox-help"><label class="checkbox"><input id="no-export" type="checkbox"><span>Отложить выгрузку JSONL и CSV</span></label>{{ help.button('no-export', 'Отложить выгрузку JSONL и CSV') }}</div><small>Записи сохранятся; выгрузку можно создать кнопкой в результатах.</small></details>
+        <div class="form-actions"><button class="primary" id="start" type="submit"><span>▶</span> Запустить сбор <span class="button-arrow">↗</span></button></div>
+        <p class="form-footnote"><span class="online-dot"></span> Прогресс сохраняется после каждой страницы</p>
+      </form>
+      <div class="monitor">
+        <section class="panel status-panel"><div class="panel-heading"><h2>Состояние задачи</h2><span id="job-state" class="badge">Готов к запуску</span></div><div class="metric-row"><div class="main-metric"><span id="saved-count">0</span><small>компонентов сохранено</small></div><div class="small-metric"><strong id="page-count">0</strong><small>страниц</small></div><div class="small-metric"><strong id="group-count">0</strong><small>групп</small></div></div><div class="progress-track"><div id="progress-fill"></div></div><div class="progress-caption"><span id="progress-label">Ожидание запуска</span><span id="progress-number">—</span></div><div id="group-progress" class="group-progress"></div><div class="status-footer"><span class="pulse-dot"></span><span id="status-caption">Задайте параметры слева, чтобы начать.</span></div></section>
+      </div>
+    </section>
+    <section class="view results-layout" data-view="results"{% if page != 'results' %} hidden{% endif %}>
+      <section class="panel results-files" id="results" aria-labelledby="results-files-title">
+        <div class="panel-heading results-heading">
+          <h2 id="results-files-title">Файлы сбора</h2>
+          <button id="export" class="primary" type="button" disabled>Создать выгрузки</button>
+        </div>
+        <div id="files" class="files"><div class="empty"><p>Выберите сохранённый сбор, чтобы открыть его файлы.</p></div></div>
+      </section>
+      <div class="results-side">
+        <section class="panel results-documents" aria-labelledby="results-documents-title">
+          <h2 id="results-documents-title">Документация в PDF</h2>
+          <p id="document-status" aria-live="polite">Выберите сбор, чтобы узнать число PDF к загрузке.</p>
+          <div class="document-actions">
+            <div class="pdf-limit">
+              {{ help.field('max-documents', 'Лимит PDF', 'pdf-limit') }}
+              <input id="max-documents" type="number" min="0" step="1" value="0" aria-describedby="pdf-limit-caption">
+            </div>
+            <button id="datasheets" class="secondary" type="button" disabled>Скачать PDF ↓</button>
+          </div>
+          <small id="pdf-limit-caption">0 — скачать все доступные PDF.</small>
+        </section>
+        <section class="panel result-delete" id="result-delete" aria-labelledby="result-delete-title" hidden>
+          <h2 id="result-delete-title">Удаление сбора</h2>
+          <p id="delete-target"></p>
+          <button type="button" class="secondary delete-button" id="delete-result" aria-describedby="delete-hint delete-target" disabled>Удалить сбор</button>
+          <small id="delete-hint">зажать</small>
+        </section>
+      </div>
+    </section>
+    <section class="view" data-view="components"{% if page != 'components' %} hidden{% endif %}>
+      <div class="tools-grid">
+        <section class="panel tool-panel">
+          <div class="heading-with-help"><h2>Заполненность по требованиям</h2>{{ help.button('coverage', 'Как считается заполненность') }}</div>
+          <div class="coverage-summary">
+            <strong id="components-percent">—</strong>
+            <small id="components-caption">Выберите сбор</small>
+          </div>
+          <div class="tool-actions">
+            <button id="coverage-report" class="secondary" type="button" disabled>Создать отчёт JSONL</button>
+            <a id="coverage-download" class="text-button" hidden>Скачать отчёт ↓</a>
+          </div>
+        </section>
+        <form id="supplement-form" class="panel tool-panel">
+          <h2>Дополнения из PDF</h2>
+          {{ help.field('supplement-file', 'JSON с полями и источниками', 'supplements') }}
+          <input id="supplement-file" name="file" type="file" accept=".json,application/json" required>
+          <small>Записи по source и source_id добавятся в выбранный сбор.</small>
+          <button id="supplement-import" class="primary" type="submit" disabled>Импортировать дополнения</button>
+        </form>
+      </div>
+    <section class="panel data-panel"><div class="panel-heading"><div><h2>Собранные компоненты <span id="table-total" class="table-count">0</span></h2><p class="section-description">Нажмите на артикул, чтобы посмотреть характеристики.</p></div><input type="search" id="search" placeholder="Поиск по артикулу или производителю" aria-label="Поиск компонентов"></div><div class="table-wrap"><table><thead><tr><th>АРТИКУЛ</th><th>ПРОИЗВОДИТЕЛЬ</th><th>СЕРИЯ</th><th>ГРУППА</th><th>ХАРАКТЕРИСТИКИ</th><th>ДОКУМЕНТ</th></tr></thead><tbody id="parts-body"><tr><td colspan="6" class="empty-table">Начните сбор или откройте сохранённый результат</td></tr></tbody></table></div><div class="table-footer"><span id="table-range">Нет записей</span><div><button id="prev" class="icon-button" type="button" disabled aria-label="Предыдущая страница">←</button><button id="next" class="icon-button" type="button" disabled aria-label="Следующая страница">→</button></div></div></section>
+    </section>
+    <section class="view" data-view="sources"{% if page != 'sources' %} hidden{% endif %}>
+      <div class="tools-grid">
+        <section class="panel tool-panel" id="connected-sources">
+          <h2>Подключённые источники</h2>
+          <ul id="source-list" class="source-list"></ul>
+        </section>
+        <section class="panel tool-panel">
+          <div class="heading-with-help"><h2>Требования аналитиков</h2>{{ help.button('requirements', 'Матрица требований аналитиков') }}</div>
+          <p id="requirements-summary">Загрузка матрицы…</p>
+          <div class="tool-actions">
+            <button id="convert-requirements" class="secondary" type="button">Обновить из HTML</button>
+            <a href="/api/requirements?download=1" class="text-button" id="requirements-download" hidden>Скачать матрицу JSON ↓</a>
+          </div>
+          <small>Исходные HTML-файлы находятся в project_files/analytics_data/.</small>
+          <details id="requirements-details" hidden>
+            <summary>Группы по листам</summary>
+            <ul id="requirements-sheets" class="metadata-list"></ul>
+          </details>
+        </section>
+        <form id="filters-form" class="panel tool-panel">
+          <h2>Фильтры каталога</h2>
+          <label for="filter-preset">Категория</label>
+          <div class="select-field"><select id="filter-preset" required></select></div>
+          {{ help.field('filter-group', 'Подкатегория', 'filter-group') }}
+          <div class="select-field"><select id="filter-group" required></select></div>
+          <div class="tool-actions">
+            <button id="fetch-filters" class="primary" type="submit">Получить фильтры</button>
+            <a id="filters-download" class="text-button" hidden>Скачать JSON ↓</a>
+          </div>
+          <ul id="filter-list" class="metadata-list"></ul>
+        </form>
+        <form id="preset-form" class="panel tool-panel">
+          <h2>Новая подкатегория YAGEO</h2>
+          {{ help.field('preset-category', 'Категория', 'preset-category') }}
+          <div class="select-field"><select id="preset-category" name="category_file" required>
+            <option value="">Выберите категорию…</option>
+          </select></div>
+          <div id="preset-new-category" hidden>
+            {{ help.field('preset-category-name', 'Название категории', 'preset-category') }}
+            <input id="preset-category-name" name="category_name" type="text" placeholder="Индуктивности" maxlength="140" required disabled>
+            {{ help.field('preset-category-key', 'Ключ категории', 'preset-category') }}
+            <input id="preset-category-key" name="category_key" type="text" placeholder="inductors" pattern="[a-z0-9][a-z0-9_\-]*" maxlength="80" required disabled>
+            {{ help.field('preset-catalogue', 'Адрес страницы категории YAGEO', 'preset-catalogue') }}
+            <input id="preset-catalogue" name="catalogue" type="url" placeholder="https://yageogroup.com/products/Inductors" required disabled>
+          </div>
+          {{ help.field('preset-name', 'Название подкатегории', 'preset-name') }}
+          <input id="preset-name" name="name" type="text" placeholder="Толстоплёночные" required maxlength="140">
+          {{ help.field('preset-key', 'Ключ подкатегории', 'preset-name') }}
+          <input id="preset-key" name="key" type="text" placeholder="thick-film" pattern="[a-zA-Z0-9_\-]+" maxlength="80" required>
+          {{ help.field('preset-request-url', 'Адрес запроса base-part', 'preset-request') }}
+          <input id="preset-request-url" name="request_url" type="text" placeholder="https://yageogroup.com/search/query/base-part/…" spellcheck="false" maxlength="16000" required>
+          <small>Вставьте Request URL из Network. Приложение само извлечёт категорию и фильтры при сохранении.</small>
+          <div class="tool-actions">
+            <button id="save-preset" class="primary" type="submit">Добавить подкатегорию</button>
+            <button id="preview-preset" class="secondary" type="button">Проверить запрос</button>
+          </div>
+          <pre id="preset-query-preview" aria-live="polite" hidden></pre>
+        </form>
+      </div>
+      <section class="panel tool-panel mapping-panel" id="mapping-panel" hidden>
+        <div class="heading-with-help"><h2>Сопоставление параметров каталога</h2>{{ help.button('catalogue-mapping', 'Как найти и сопоставить параметр') }}</div>
+        <p id="mapping-empty" role="status">Загрузка листов…</p>
+        <div id="mapping-tabs" class="mapping-tabs" role="tablist" aria-label="Листы аналитиков"></div>
+        <div id="mapping-sheet-panel" role="tabpanel" hidden>
+          <div class="table-wrap mapping-table" tabindex="0" aria-label="Матрица сопоставлений">
+            <table><thead id="mapping-head"></thead><tbody id="mapping-rules"></tbody></table>
+          </div>
+          <ul class="mapping-legend" aria-label="Обозначения ячеек матрицы">
+            <li class="mapping-filled">Сопоставлено или задано в матрице</li>
+            <li class="mapping-missing">Нужно сопоставить</li>
+            <li class="mapping-deferred">Дозаполнить позже</li>
+            <li class="mapping-excluded">Не заполняется</li>
+          </ul>
+        </div>
+      </section>
+      <dialog id="mapping-dialog" aria-labelledby="mapping-title">
+        <div class="panel-heading"><h2 id="mapping-title"></h2><button id="close-mapping" class="icon-button" type="button" aria-label="Закрыть">×</button></div>
+        <p id="mapping-context"></p>
+        <div class="mapping-dialog-layout">
+        <form id="mapping-form">
+          <label for="mapping-catalogue">Категория и подкатегория каталога</label>
+          <div class="select-field"><select id="mapping-catalogue" required></select></div>
+          <div class="field-grid">
+            <div>{{ help.field('mapping-parameter', 'ID параметра каталога', 'catalogue-mapping') }}
+              <input id="mapping-parameter" type="number" min="1" step="1" list="mapping-parameters" required>
+              <datalist id="mapping-parameters"></datalist>
+            </div>
+            <div><label for="mapping-name">Название в каталоге</label><input id="mapping-name" maxlength="200" placeholder="Например, Rated Current"></div>
+            <div>{{ help.field('mapping-factor', 'Множитель единиц', 'mapping-factor') }}
+              <input id="mapping-factor" type="number" value="1" min="0.000000000000001" step="any" required>
+            </div>
+          </div>
+          <p id="mapping-parameter-example" hidden></p>
+          <p id="mapping-editor-status" role="status"></p>
+          <div class="tool-actions">
+            <button id="save-mapping" class="primary" type="submit" disabled>Сохранить правило</button>
+            <button id="defer-mapping" class="secondary" type="button" disabled>Дозаполнить позже</button>
+            <button id="remove-mapping" class="text-button" type="button" hidden>Убрать отметку или правило</button>
+          </div>
+        </form>
+        <aside class="mapping-filter-panel" aria-labelledby="mapping-filter-title">
+          <h3 id="mapping-filter-title">Параметры каталога</h3>
+          <input id="mapping-filter-search" type="search" placeholder="По названию или ID" aria-label="Поиск параметров каталога" disabled>
+          <p id="mapping-filter-status" role="status"></p>
+          <button id="fetch-mapping-filters" class="secondary" type="button" hidden>Получить фильтры</button>
+          <ul id="mapping-filter-list" class="mapping-filter-list"></ul>
+        </aside>
+        </div>
+      </dialog>
+    </section>
+    <section class="view logs-view" data-view="logs"{% if page != 'logs' %} hidden{% endif %}>
+      <section class="panel log-panel" id="run-log">
+        <div class="panel-heading"><h2>Журнал выбранного сбора</h2><a id="log-download" class="text-button" hidden>Скачать журнал ↓</a></div>
+        <pre id="log-content">Выберите сбор.</pre>
+      </section>
+      <section class="panel log-panel">
+        <div class="panel-heading"><h2>Журнал инструментов</h2></div>
+        <pre id="tool-log-content">Здесь появится вывод задач по фильтрам и матрице.</pre>
+      </section>
+    </section>
+  </main>
+</div>
+<div class="notice-layer" role="status"><div id="notice" class="notice"></div></div>
+<dialog id="part-dialog" aria-labelledby="part-title">
+  <div class="panel-heading"><h2 id="part-title">Компонент</h2><button id="close-dialog" class="icon-button" type="button" aria-label="Закрыть">×</button></div>
+  <p id="part-subtitle"></p>
+  <div id="part-links" class="part-links">
+    <a id="part-pdf" class="reader-action" target="_blank" rel="noopener noreferrer" hidden>Datasheet ↗</a>
+    <a id="part-local-pdf" class="reader-action" target="_blank" rel="noopener noreferrer" hidden>Сохранённый PDF ↗</a>
+    <a id="part-product" class="reader-action" target="_blank" rel="noopener noreferrer" hidden>Карточка у производителя ↗</a>
+  </div>
+  <div id="part-table-wrap" class="table-wrap part-table" tabindex="0" aria-label="Характеристики компонента"><table>
+    <thead><tr><th scope="col">Характеристика</th><th scope="col">Значение</th><th scope="col">Исходное значение</th></tr></thead>
+    <tbody id="part-parameters"></tbody></table>
+  </div>
+</dialog>
+{{ help.panels() }}
+</body>
+</html>

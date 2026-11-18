@@ -1,0 +1,158 @@
+[
+  {
+    "source": "yageo",
+    "query": {
+      "1": 1,
+      "79": [
+        397
+      ]
+    },
+    "sheet": "Конденсаторы",
+    "group": "Конденсаторы оксидно-электролитические",
+    "fields": {
+      "Номинальная емкость, Ф": {
+        "parameter_id": 6,
+        "parameter_name": "Capacitance"
+      },
+      "Номинальное напряжение, В": {
+        "parameter_id": 10,
+        "parameter_name": "Compare Voltage DC"
+      }
+    },
+    "classified_only": true
+  },
+  {
+    "source": "yageo",
+    "query": {
+      "1": 1,
+      "79": [
+        558
+      ]
+    },
+    "sheet": "Конденсаторы",
+    "group": "Конденсаторы керамические",
+    "fields": {
+      "Номинальная емкость, Ф": {
+        "parameter_id": 6,
+        "parameter_name": "Capacitance"
+      },
+      "Номинальное напряжение, В": {
+        "parameter_id": 10,
+        "parameter_name": "Compare Voltage DC"
+      }
+    },
+    "classified_only": true
+  },
+  {
+    "source": "yageo",
+    "query": {
+      "1": 1,
+      "79": [
+        482
+      ]
+    },
+    "sheet": "Конденсаторы",
+    "group": "Конденсаторы и фильтры пленочные и металлопленочные",
+    "fields": {
+      "Номинальная емкость, Ф": {
+        "parameter_id": 6,
+        "parameter_name": "Capacitance"
+      },
+      "Номинальное напряжение, В": {
+        "parameter_id": 10,
+        "parameter_name": "Compare Voltage DC"
+      }
+    },
+    "classified_only": true
+  },
+  {
+    "source": "yageo",
+    "query": {
+      "1": 1605,
+      "79": [
+        1655
+      ]
+    },
+    "sheet": "Резисторы",
+    "group": "Резисторы постоянные непроволочные",
+    "fields": {
+      "Номинальная мощность, Вт": {
+        "parameter_id": 271,
+        "parameter_name": "Compare Power"
+      }
+    },
+    "classified_only": true
+  },
+  {
+    "source": "yageo",
+    "query": {
+      "1": 1605,
+      "79": [
+        1687
+      ]
+    },
+    "sheet": "Резисторы",
+    "group": "Резисторы постоянные непроволочные",
+    "fields": {
+      "Номинальная мощность, Вт": {
+        "parameter_id": 271,
+        "parameter_name": "Compare Power"
+      }
+    },
+    "classified_only": true
+  },
+  {
+    "source": "yageo",
+    "query": {
+      "1": 1605,
+      "79": [
+        1606
+      ]
+    },
+    "sheet": "Резисторы",
+    "group": "Резисторы постоянные непроволочные",
+    "fields": {
+      "Номинальная мощность, Вт": {
+        "parameter_id": 271,
+        "parameter_name": "Compare Power"
+      }
+    },
+    "classified_only": true
+  },
+  {
+    "source": "yageo",
+    "query": {
+      "1": 1605,
+      "79": [
+        1607
+      ]
+    },
+    "sheet": "Резисторы",
+    "group": "Резисторы постоянные непроволочные",
+    "fields": {
+      "Номинальная мощность, Вт": {
+        "parameter_id": 271,
+        "parameter_name": "Compare Power"
+      }
+    },
+    "classified_only": true
+  },
+  {
+    "source": "yageo",
+    "query": {
+      "1": 1605,
+      "79": [
+        1661
+      ]
+    },
+    "sheet": "Резисторы",
+    "group": "Резисторы постоянные проволочные и фольговые",
+    "fields": {
+      "Номинальная мощность, Вт": {
+        "parameter_id": 271,
+        "parameter_name": "Compare Power"
+      }
+    },
+    "classified_only": true
+  }
+]

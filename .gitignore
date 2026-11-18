@@ -1,0 +1,47 @@
+# Окружение, кэши и отчёты Python
+/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+/htmlcov/
+
+# Локальные настройки и учётные данные
+/.aws/
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# Файлы сборки
+/build/
+*.egg-info/
+/dist/*.whl
+/dist/ekb_parser-*.tar.gz
+/dist/ekb-parser.zip
+
+# Утилита полного локального переноса
+/scripts/make_transfer.py
+
+# Результаты локального сбора
+/data/*/runs/
+/data/*/metadata/
+/data/analytics/requirements.json
+/coverage.jsonl
+crawl_state.sqlite3
+crawl_state.sqlite3-wal
+crawl_state.sqlite3-shm
+crawl_state.sqlite3-journal
+*.log
+*.tmp
+
+# Локальные PDF с материалами проекта
+/project_files/**/*.[pP][dD][fF]
+
+# Служебные файлы ОС
+.DS_Store
+Thumbs.db
